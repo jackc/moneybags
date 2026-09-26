@@ -175,10 +175,16 @@
     <form on:submit|preventDefault={saveFamily}>
       <div class="form-grid">
         <label>Family name<input bind:value={name} required maxlength="120" /></label><label
-          >Time zone<input bind:value={time_zone} required placeholder="America/Chicago" /></label
+          >Time zone<input
+            bind:value={time_zone}
+            required
+            placeholder="America/Chicago"
+            aria-describedby="time-zone-help"
+          /><span id="time-zone-help" class="field-help"
+            >Entry dates default to today in this time zone.</span
+          ></label
         >
       </div>
-      <p class="field-help">Entry dates default to today in this time zone.</p>
       <button class="primary" disabled={busy}>Save family settings</button>
     </form>
   </section>

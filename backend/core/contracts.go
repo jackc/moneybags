@@ -74,6 +74,7 @@ func PrincipalFromContext(ctx context.Context) (Principal, bool) {
 }
 
 type Config struct {
+	AllowRegistration bool
 	Store             Store
 	Blobs             BlobStore
 	Fetcher           FileFetcher

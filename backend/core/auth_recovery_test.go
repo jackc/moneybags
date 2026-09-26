@@ -54,7 +54,7 @@ func TestRegistrationCrossFileCommitFailuresFailClosed(t *testing.T) {
 	for _, boundary := range []int{1, 2, 3} {
 		t.Run(string(rune('0'+boundary)), func(t *testing.T) {
 			store := &authFaultStore{base: memstore.New(), failCommit: boundary}
-			c := core.New(core.Config{Store: store, Origin: "https://money.example"})
+			c := core.New(core.Config{AllowRegistration: true, Store: store, Origin: "https://money.example"})
 			params := core.RegisterParams{Username: "alice", Password: testPassword}
 			authCallError(t, c, context.Background(), "register", params)
 			store.failCommit = 0
@@ -100,7 +100,7 @@ func TestRegistrationCrossFileCommitFailuresFailClosed(t *testing.T) {
 func TestAccountDeletionSurvivesGlobalRevocationFailure(t *testing.T) {
 	base := memstore.New()
 	fault := &authFaultStore{base: base}
-	c := core.New(core.Config{Store: fault, Origin: "https://money.example"})
+	c := core.New(core.Config{AllowRegistration: true, Store: fault, Origin: "https://money.example"})
 	session := authCall[core.AuthSession](t, c, context.Background(), "register", core.RegisterParams{Username: "alice", Password: testPassword})
 	principal := authCall[core.Principal](t, c, context.Background(), "authenticate_session", core.TokenParams{Token: session.Token})
 	ctx := core.WithPrincipal(context.Background(), principal)
@@ -122,7 +122,7 @@ func TestAccountDeletionSurvivesGlobalRevocationFailure(t *testing.T) {
 func TestReconciliationDoesNotCreateMissingFamilyDatabase(t *testing.T) {
 	base := memstore.New()
 	fault := &authFaultStore{base: base}
-	c := core.New(core.Config{Store: fault, Origin: "https://money.example"})
+	c := core.New(core.Config{AllowRegistration: true, Store: fault, Origin: "https://money.example"})
 	session := authCall[core.AuthSession](t, c, context.Background(), "register", core.RegisterParams{Username: "alice", Password: testPassword})
 	before := fault.calls
 	admin := core.WithPrincipal(context.Background(), core.Principal{Admin: true, Source: "cli"})

@@ -312,6 +312,9 @@ func (c *Core) releaseReservation(ctx context.Context, user AuthUser) error {
 	})
 }
 func (c *Core) registerAccount(ctx context.Context, p RegisterParams) (AuthSession, error) {
+	if !c.allowRegistration {
+		return AuthSession{}, authError("permission_denied", "Registration is currently disabled")
+	}
 	p.Username = normalizeUsername(p.Username)
 	if err := validateNewAccount(p.Username, p.Password, p.DisplayName); err != nil {
 		return AuthSession{}, err

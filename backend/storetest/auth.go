@@ -30,7 +30,7 @@ func callAs[T any](t *testing.T, c *core.Core, ctx context.Context, name string,
 func RunAuth(t *testing.T, store core.Store) {
 	t.Helper()
 	now := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
-	c := core.New(core.Config{Store: store, Clock: func() time.Time { return now }, Origin: "http://localhost:8080", RPID: "localhost"})
+	c := core.New(core.Config{AllowRegistration: true, Store: store, Clock: func() time.Time { return now }, Origin: "http://localhost:8080", RPID: "localhost"})
 	prefix := fmt.Sprintf("auth%d", time.Now().UnixNano())
 	password := "correct horse battery staple"
 	a := callAs[core.AuthSession](t, c, context.Background(), "register", core.RegisterParams{Username: prefix + "a", Password: password, FamilyName: "Shared family", TimeZone: "America/Chicago"})

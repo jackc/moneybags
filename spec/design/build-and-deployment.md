@@ -101,6 +101,11 @@ WebAuthn origin exactly matches the browser-visible origin. Money Bags must not
 override the port supplied by Verna. These configuration names follow the
 sibling applications.
 
+Registration defaults to disabled, as in FAM and Logger4Life. Set
+`ALLOW_REGISTRATION=true` in the application's environment and restart to create
+the first family. Set it back to `false` and restart to close public signup;
+existing logins and family invitations continue to work.
+
 Choose one database backend. For PostgreSQL, provision the database and
 application credentials and set the deployment's connection URL:
 

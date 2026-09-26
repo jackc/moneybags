@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -39,7 +40,7 @@ func newFixture(t *testing.T) *fixture {
 	if e != nil {
 		t.Fatal(e)
 	}
-	app := core.New(core.Config{Store: memstore.New(), Blobs: blobs, Origin: "http://localhost", RPID: "localhost", RPName: "Money Bags", OAuthResolver: fakeResolver{}})
+	app := core.New(core.Config{AllowRegistration: true, Store: memstore.New(), Blobs: blobs, Origin: "http://localhost", RPID: "localhost", RPName: "Money Bags", OAuthResolver: fakeResolver{}})
 	srv := httptest.NewServer(New(app, Config{Origin: "http://localhost", AssetsDir: t.TempDir()}))
 	t.Cleanup(srv.Close)
 	f := &fixture{t: t, app: app, server: srv}
@@ -74,6 +75,37 @@ func (f *fixture) call(name string, params any, status int) map[string]any {
 		f.t.Fatal(e)
 	}
 	return out
+}
+
+func TestRegistrationSettingsAndEnforcement(t *testing.T) {
+	for _, allow := range []bool{false, true} {
+		t.Run(fmt.Sprint(allow), func(t *testing.T) {
+			app := core.New(core.Config{Store: memstore.New(), AllowRegistration: allow})
+			handler := New(app, Config{Origin: "http://localhost"})
+			settings := httptest.NewRecorder()
+			handler.ServeHTTP(settings, httptest.NewRequest(http.MethodGet, "/api/settings", nil))
+			var body map[string]bool
+			if err := json.Unmarshal(settings.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			value, present := body["allow_registration"]
+			if settings.Code != http.StatusOK || !present || value != allow || settings.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("unexpected public settings: %d %s", settings.Code, settings.Body)
+			}
+			request := httptest.NewRequest(http.MethodPost, "/api/actions/register", strings.NewReader(`{"username":"alice","password":"a very long password"}`))
+			request.Header.Set("Origin", "http://localhost")
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if allow {
+				if response.Code != http.StatusOK || len(response.Result().Cookies()) != 1 {
+					t.Fatalf("enabled signup: %d %s", response.Code, response.Body)
+				}
+			} else if response.Code != http.StatusForbidden || len(response.Result().Cookies()) != 0 || !strings.Contains(response.Body.String(), "Registration is currently disabled") {
+				t.Fatalf("disabled signup: %d %s", response.Code, response.Body)
+			}
+		})
+	}
 }
 
 func TestHTTPCookiesCSRFAndCatalog(t *testing.T) {

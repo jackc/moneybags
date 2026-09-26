@@ -126,6 +126,9 @@ test('invited family members have equal access and account deletion preserves en
   const url = await page.getByLabel('Share this single-use invitation').inputValue();
   const secondContext = await browser.newContext();
   const second = await secondContext.newPage();
+  await second.route('**/api/settings', (route) =>
+    route.fulfill({ json: { allow_registration: false } })
+  );
   await second.goto(url);
   await second.getByLabel('Your name').fill('Sam Green');
   await second.getByLabel('Username', { exact: true }).fill(username());
@@ -164,6 +167,35 @@ test('invited family members have equal access and account deletion preserves en
   await expect(page.locator('.activity-row').first()).toContainText('Sam Green');
   await secondContext.close();
 });
+
+for (const settingsState of ['disabled', 'unavailable']) {
+  test(`registration ${settingsState} hides signup and preserves login`, async ({
+    page,
+    context
+  }) => {
+    const name = await register(page);
+    await context.clearCookies();
+    await page.route('**/api/settings', (route) =>
+      settingsState === 'disabled'
+        ? route.fulfill({ json: { allow_registration: false } })
+        : route.fulfill({ status: 503, json: { error: 'Unavailable' } })
+    );
+    for (const path of ['/', '/register']) {
+      const settings = page.waitForResponse('**/api/settings');
+      await page.goto(path);
+      await settings;
+      await expect(page.getByRole('heading', { name: 'Open your bags' })).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: 'Create an account', exact: true })
+      ).toHaveCount(0);
+      await expect(page.getByLabel('Family name')).toHaveCount(0);
+    }
+    await page.getByLabel('Username', { exact: true }).fill(name);
+    await page.getByLabel('Password', { exact: false }).fill(password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Your bags', exact: true })).toBeVisible();
+  });
+}
 
 test('passkey enrollment, password logout, passkey login, and recent-auth removal', async ({
   page,

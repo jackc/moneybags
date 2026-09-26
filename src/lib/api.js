@@ -32,6 +32,10 @@ export async function action(name, params = {}) {
   );
 }
 
+export async function publicSettings() {
+  return responseData(await fetch('/api/settings', { credentials: 'same-origin' }));
+}
+
 export const requestID = () => crypto.randomUUID();
 export const items = (result, key) =>
   result?.[key] ?? result?.items ?? (Array.isArray(result) ? result : []);

@@ -14,9 +14,18 @@ Money Bags runs one active Go process behind HTTPS. Runtime settings are:
 | `WEBAUTHN_RP_ID` | Public hostname, default hostname of canonical origin |
 | `WEBAUTHN_ORIGIN` | Must match the canonical origin |
 | `SECURE_COOKIES` | Defaults true for HTTPS; required for public deployment |
+| `ALLOW_REGISTRATION` | Defaults false; set true to allow new accounts and families |
 | `FAMILY_STORAGE_QUOTA_BYTES` | Default `1073741824` (1 GiB per family) |
 | `LOG_FORMAT` | `json` (default), `text`, or `journal` for direct systemd journald logging |
 | `LOG_LEVEL` | `debug`, `info` (default), `warn`, or `error` |
+
+Registration can also be enabled with `moneybags server --allow-registration`.
+An explicit `--allow-registration=false` overrides an enabled environment
+setting. Restart the server to apply changes. To create the first family,
+temporarily enable registration, create an account, then disable it and restart.
+Existing users can sign in and invite family members while registration is
+disabled. The public `GET /api/settings` endpoint reports `allow_registration`
+so the login screen only offers signup when enabled; the backend also enforces it.
 
 Logging settings are case-insensitive; empty or unrecognized values fall back
 to JSON and info. JSON and text logs go to stderr, leaving administrative action

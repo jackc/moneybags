@@ -28,6 +28,7 @@ export default defineConfig({
       env: {
         ...process.env,
         DATABASE_BACKEND: 'jed',
+        ALLOW_REGISTRATION: 'true',
         JED_DATA_DIR: '.dev/browser-jed',
         ATTACHMENTS_DIR: '.dev/browser-attachments',
         PORT: backendPort,

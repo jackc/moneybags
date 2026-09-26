@@ -26,7 +26,7 @@ def server(env):
     origin = f"http://localhost:{port}"
     env = dict(env, PORT=str(port), BIND_ADDRESS="127.0.0.1", MCP_CANONICAL_URL=origin,
                WEBAUTHN_ORIGIN=origin, WEBAUTHN_RP_ID="localhost", SECURE_COOKIES="false",
-               ASSETS_DIR=str(ROOT / "build/assets"))
+               ASSETS_DIR=str(ROOT / "build/assets"), ALLOW_REGISTRATION="true")
     process = subprocess.Popen([str(BINARY), "server"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(100):
         if process.poll() is not None:

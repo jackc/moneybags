@@ -61,6 +61,9 @@ func New(app *core.Core, cfg Config) http.Handler {
 	r.Post("/oauth/token", a.oauthToken)
 	r.Post("/oauth/revoke", a.oauthRevoke)
 	r.Post("/api/actions/{action}", a.action)
+	r.Get("/api/settings", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]bool{"allow_registration": app.AllowRegistration()})
+	})
 	r.Post("/api/uploads", a.upload)
 	r.Get("/api/attachments/{id}", a.download)
 	r.Get("/api/catalog", func(w http.ResponseWriter, r *http.Request) {

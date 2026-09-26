@@ -43,7 +43,7 @@ For a standalone Jed server with compiled frontend assets:
 
 ```sh
 mise run build
-DATABASE_BACKEND=jed PORT=4000 MCP_CANONICAL_URL=http://localhost:4000 \
+DATABASE_BACKEND=jed ALLOW_REGISTRATION=true PORT=4000 MCP_CANONICAL_URL=http://localhost:4000 \
   WEBAUTHN_ORIGIN=http://localhost:4000 WEBAUTHN_RP_ID=localhost \
   JED_DATA_DIR="$PWD/.dev/jed" ATTACHMENTS_DIR="$PWD/.dev/attachments" \
   ./build/moneybags server
@@ -53,6 +53,14 @@ Open `http://localhost:4000`. The Go executable serves the static frontend;
 Node is needed only for development and asset builds. Persist both the selected
 database and the attachment directory. Selecting another database backend does
 not transfer data.
+
+Registration is disabled by default, matching FAM and Logger4Life. Enable new
+accounts and families with `ALLOW_REGISTRATION=true` or
+`./build/moneybags server --allow-registration`. The CLI flag overrides the
+environment; `--allow-registration=false` explicitly disables it. Restart the
+server after changing the setting. Existing users can still sign in, and family
+invitation links still work when registration is disabled. Local development
+and browser tests enable registration automatically.
 
 Logging defaults to JSON on stderr. Set `LOG_FORMAT=text` for readable console
 logs or `LOG_FORMAT=journal` to log directly to systemd journald, as in Logger4Life

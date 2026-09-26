@@ -21,7 +21,7 @@ processes:
       postgres:
         condition: process_healthy
   backend:
-    command: PORT="$BACKEND_PORT" go run . server
+    command: PORT="$BACKEND_PORT" go run . server --allow-registration
     depends_on:
       database-ready:
         condition: process_completed_successfully

@@ -36,7 +36,7 @@ func newAuthHarness(t *testing.T) *authHarness {
 	store := memstore.New()
 	now := time.Now().UTC()
 	resolver := &authResolver{core.OAuthClient{ClientID: "https://client.example/metadata.json", ClientName: "Test assistant", RedirectURIs: []string{"https://client.example/callback"}}}
-	c := core.New(core.Config{Store: store, Clock: func() time.Time { return now }, Origin: "https://money.example", RPID: "money.example", OAuthResolver: resolver})
+	c := core.New(core.Config{AllowRegistration: true, Store: store, Clock: func() time.Time { return now }, Origin: "https://money.example", RPID: "money.example", OAuthResolver: resolver})
 	return &authHarness{c, store, &now, resolver}
 }
 func authCall[T any](t *testing.T, c *core.Core, ctx context.Context, name string, params any) T {
@@ -86,6 +86,27 @@ func requireOAuthCode(t *testing.T, err error, code string) {
 	var app *core.OAuthError
 	if !errors.As(err, &app) || app.Code != code {
 		t.Fatalf("wanted OAuth %s, got %v", code, err)
+	}
+}
+
+func TestRegistrationDisabledByDefault(t *testing.T) {
+	// No store is needed: the gate must reject signup before any storage access.
+	c := core.New(core.Config{})
+	requireAuthCode(t, authCallError(t, c, context.Background(), "register", core.RegisterParams{Username: "alice", Password: testPassword}), "permission_denied")
+}
+
+func TestDisablingRegistrationPreservesLoginAndInvitations(t *testing.T) {
+	h := newAuthHarness(t)
+	alice, _ := h.register(t, "alice")
+	// Reopening the same store models disabling registration and restarting.
+	h.c = core.New(core.Config{Store: h.store, Clock: func() time.Time { return *h.clock }})
+	requireAuthCode(t, authCallError(t, h.c, context.Background(), "register", core.RegisterParams{Username: "bob", Password: testPassword}), "permission_denied")
+	loggedIn := authCall[core.AuthSession](t, h.c, context.Background(), "login", core.LoginParams{Username: "alice", Password: testPassword})
+	ctx := h.sessionContext(t, loggedIn.Token)
+	invite := authCall[core.CreateInvitationResult](t, h.c, ctx, "create_invitation", core.CreateInvitationParams{RequestID: "join"})
+	bob := authCall[core.AuthSession](t, h.c, context.Background(), "accept_invitation", core.AcceptInvitationParams{Token: invite.Token, Username: "bob", Password: testPassword})
+	if bob.Family.ID != alice.Family.ID {
+		t.Fatal("invited user did not join the existing family")
 	}
 }
 

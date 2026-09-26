@@ -71,7 +71,7 @@ func (errorStore) InTx(context.Context, string, func(core.Tx) error) error {
 }
 func TestInfrastructureErrorsAndLogsNeverRevealSecrets(t *testing.T) {
 	var logs bytes.Buffer
-	handler := New(core.New(core.Config{Store: errorStore{}}), Config{Origin: "https://money.example", Logger: slog.New(slog.NewJSONHandler(&logs, nil))})
+	handler := New(core.New(core.Config{AllowRegistration: true, Store: errorStore{}}), Config{Origin: "https://money.example", Logger: slog.New(slog.NewJSONHandler(&logs, nil))})
 	request := httptest.NewRequest(http.MethodPost, "https://money.example/api/actions/register", strings.NewReader(`{"username":"alice","password":"correct password here"}`))
 	request.Header.Set("Origin", "https://money.example")
 	request.Header.Set("Content-Type", "application/json")

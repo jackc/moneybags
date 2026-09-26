@@ -15,6 +15,7 @@ import (
 )
 
 type Core struct {
+	allowRegistration    bool
 	store                Store
 	blobs                BlobStore
 	fetcher              FileFetcher
@@ -54,10 +55,15 @@ func New(cfg Config) *Core {
 	}
 	c := &Core{store: cfg.Store, blobs: cfg.Blobs, fetcher: cfg.Fetcher, oauthResolver: cfg.OAuthResolver, clock: cfg.Clock, id: cfg.ID, token: cfg.Token, origin: cfg.Origin, rpID: cfg.RPID, rpName: cfg.RPName, quota: cfg.StorageQuotaBytes, actions: map[string]actionRegistration{}}
 	c.registerFinanceActions()
+	c.allowRegistration = cfg.AllowRegistration
 	c.registerAuthActions()
 	return c
 }
 func (c *Core) now() time.Time { return c.clock().UTC().Truncate(time.Microsecond) }
+
+// AllowRegistration reports whether new families may be created. Invitations
+// to existing families remain available regardless of this setting.
+func (c *Core) AllowRegistration() bool { return c.allowRegistration }
 func (c *Core) register(name string, info ActionInfo, handler func(context.Context, json.RawMessage) (any, error)) {
 	if _, ok := c.actions[name]; ok {
 		panic("duplicate action: " + name)

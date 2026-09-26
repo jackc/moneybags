@@ -1,10 +1,20 @@
 <script>
-  import { action, friendlyError } from '$lib/api.js';
+  import { onMount } from 'svelte';
+  import { action, friendlyError, publicSettings } from '$lib/api.js';
   import { passkeyLogin, supportsPasskeys } from '$lib/passkeys.js';
   import BagIcon from './BagIcon.svelte';
   export let onlogin;
   export let invitation = '';
   let mode = 'login';
+  let allowRegistration = false;
+  onMount(async () => {
+    try {
+      const settings = await publicSettings();
+      allowRegistration = settings.allow_registration === true;
+    } catch {
+      // Keep sign-in and invitations available if settings cannot be loaded.
+    }
+  });
   let username = '',
     password = '',
     display_name = '',
@@ -12,7 +22,7 @@
     time_zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let busy = false,
     error = '';
-  $: registering = mode === 'register' || !!invitation;
+  $: registering = (allowRegistration && mode === 'register') || !!invitation;
   async function submit() {
     busy = true;
     error = '';
@@ -139,7 +149,7 @@
           >Sign in with a passkey</button
         >
       {/if}
-      {#if !invitation}<p class="auth-switch">
+      {#if !invitation && allowRegistration}<p class="auth-switch">
           {registering ? 'Already have an account?' : 'A new beginning?'}
           <button
             class="text-button"

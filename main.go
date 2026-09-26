@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net"
@@ -38,6 +39,23 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+func registrationOption(args []string) (bool, error) {
+	allow, err := strconv.ParseBool(env("ALLOW_REGISTRATION", "false"))
+	if err != nil {
+		return false, errors.New("ALLOW_REGISTRATION must be a boolean")
+	}
+	flags := flag.NewFlagSet("moneybags server", flag.ContinueOnError)
+	flags.BoolVar(&allow, "allow-registration", allow, "allow new user registration")
+	if err := flags.Parse(args); err != nil {
+		return false, err
+	}
+	if flags.NArg() != 0 {
+		return false, errors.New("usage: moneybags server [--allow-registration]")
+	}
+	return allow, nil
+}
+
 func run() error {
 	command := "server"
 	if len(os.Args) > 1 {
@@ -45,6 +63,21 @@ func run() error {
 	}
 	if command != "server" && command != "migrate" && command != "action" {
 		return errors.New("usage: moneybags {server|migrate|action <administrative-action> <json>}")
+	}
+	allowRegistration := false
+	if command == "server" {
+		var args []string
+		if len(os.Args) > 1 {
+			args = os.Args[2:]
+		}
+		var err error
+		allowRegistration, err = registrationOption(args)
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -132,7 +165,7 @@ func run() error {
 		return errors.New("FAMILY_STORAGE_QUOTA_BYTES must be positive")
 	}
 	fetcher := safefetch.New()
-	app := core.New(core.Config{Store: store, Blobs: blobs, Fetcher: fetcher, OAuthResolver: fetcher, Origin: origin, RPID: rpID, RPName: "Money Bags", StorageQuotaBytes: quota})
+	app := core.New(core.Config{AllowRegistration: allowRegistration, Store: store, Blobs: blobs, Fetcher: fetcher, OAuthResolver: fetcher, Origin: origin, RPID: rpID, RPName: "Money Bags", StorageQuotaBytes: quota})
 	if command == "action" {
 		if len(os.Args) != 4 {
 			return errors.New("usage: moneybags action <administrative-action> '<json>'")

@@ -11,6 +11,11 @@ signed USD cents.
 Zero-dollar entries let you add chronological notes to a bag. Entries can be
 edited or deleted, and all users in a family have equal access.
 
+The home page lists all active bags, with your personal pins first. Both pinned
+and unpinned bags are alphabetical. Use Manage pins to keep everyday bags at the
+top; pins are saved to your account across devices. Record expenses directly from a bag's card, and
+open the bag to add money or review activity. Bag amounts are budget guidelines.
+
 The application includes password and passkey authentication, invitations,
 shared bags and activity, Markdown notes, independent file attachments, entry
 history, account and connected-client management, and an OAuth-protected MCP

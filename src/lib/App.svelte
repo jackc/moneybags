@@ -9,6 +9,7 @@
   import Auth from './components/Auth.svelte';
   import BagIcon from './components/BagIcon.svelte';
   import BagForm from './components/BagForm.svelte';
+  import BagHome from './components/BagHome.svelte';
   import EntryForm from './components/EntryForm.svelte';
   import Settings from './components/Settings.svelte';
   import OAuthConsent from './components/OAuthConsent.svelte';
@@ -25,7 +26,8 @@
     revisions = [],
     cursor = '',
     historyCursor = '',
-    archived = false;
+    pinnedBagIDs = [],
+    entryBagID = '';
   let modal = '',
     entryMode = 'expense',
     editEntry = null,
@@ -39,10 +41,6 @@
     (path.startsWith('/invite/') ? decodeURIComponent(path.slice(8)) : '');
   $: bagID = path.startsWith('/bags/') ? decodeURIComponent(path.slice(6)) : '';
   $: entryID = path.startsWith('/entries/') ? decodeURIComponent(path.slice(9)) : '';
-  $: total = bags
-    .filter((b) => !b.archived)
-    .reduce((sum, b) => sum + BigInt(b.balance_cents || 0), 0n);
-  $: visibleBags = bags.filter((b) => !!b.archived === archived);
   $: if (ready && user && path !== loadedPath) {
     loadedPath = path;
     loadRoute();
@@ -73,7 +71,7 @@
       all = [...all, ...items(result, 'bags')];
       next = result.next_cursor || '';
     } while (next);
-    bags = all;
+    return all;
   }
   async function loadRoute() {
     const generation = ++routeGeneration;
@@ -83,7 +81,10 @@
     entry = null;
     modal = '';
     try {
-      await loadBags();
+      const [allBags, preferences] = await Promise.all([loadBags(), action('get_bag_preferences')]);
+      if (generation !== routeGeneration) return;
+      bags = allBags;
+      pinnedBagIDs = preferences.pinned_bag_ids;
       if (bagID) {
         const [bagResult, activity] = await Promise.all([
           action('get_bag', { bag_id: bagID }),
@@ -138,7 +139,8 @@
       busy = false;
     }
   }
-  function openEntry(mode) {
+  function openEntry(mode, selectedBag = bagID) {
+    entryBagID = selectedBag;
     entryMode = mode;
     editEntry = null;
     modal = 'entry';
@@ -460,84 +462,17 @@
           >
         </div>{/if}
     {:else}
-      <div class="page-heading">
-        <div>
-          <p class="eyebrow">{family?.name || 'YOUR FAMILY'} · SHARED SPENDING</p>
-          <h1>A little peace of mind.</h1>
-          <p class="muted">Everything in its place. Here's what's left.</p>
-        </div>
-        <button
-          class="primary"
-          on:click={() => {
-            editBag = null;
-            modal = 'bag';
-          }}>+ New bag</button
-        >
-      </div>
-      <section class="overview">
-        <div>
-          <p class="eyebrow">ACROSS YOUR ACTIVE BAGS</p>
-          <div class="overview-amount" class:negative={total < 0n}>{money(total)}</div>
-          <p>{total < 0n ? 'Negative balance across active bags' : 'set aside for what matters'}</p>
-        </div>
-        <div class="overview-actions">
-          <button
-            class="light-button"
-            disabled={!bags.some((b) => !b.archived)}
-            on:click={() => openEntry('expense')}>− Record expense</button
-          ><button
-            class="outline-light"
-            disabled={!bags.some((b) => !b.archived)}
-            on:click={() => openEntry('credit')}>+ Add money</button
-          >
-        </div>
-        <span class="overview-decoration" aria-hidden="true">$</span>
-      </section>
-      <div class="section-heading bags-heading">
-        <div class="tabs">
-          <button class:active={!archived} on:click={() => (archived = false)}
-            >Active bags <span class="count">{bags.filter((b) => !b.archived).length}</span></button
-          ><button class:active={archived} on:click={() => (archived = true)}
-            >Archived <span class="count">{bags.filter((b) => b.archived).length}</span></button
-          >
-        </div>
-        <span class="muted desktop-only">A shared picture for your family</span>
-      </div>
-      {#if !visibleBags.length}<div class="empty-state">
-          <BagIcon size={56} />
-          <h2>{archived ? 'Nothing tucked away' : 'Good things start with a bag'}</h2>
-          <p>
-            {archived
-              ? 'Archived bags keep their balances and history here.'
-              : 'Groceries, getting out, saving for something good. Give your money a place.'}
-          </p>
-          {#if !archived}<button
-              class="primary"
-              on:click={() => {
-                editBag = null;
-                modal = 'bag';
-              }}>Create your first bag</button
-            >{/if}
-        </div>{:else}<div class="bag-grid">
-          {#each visibleBags as item, index}<a class="bag-card" href={`/bags/${item.id}`}
-              ><span class="bag-symbol tone-{index % 4}"><BagIcon size={30} /></span>
-              <div class="bag-card-copy">
-                <h2>{item.name}</h2>
-                {#if item.description}<p class="bag-card-description">{item.description}</p>{/if}
-              </div>
-              <div class="bag-card-balance">
-                <div class="bag-card-amount" class:negative={item.balance_cents < 0}>
-                  {money(item.balance_cents)}
-                </div>
-                <p class="bag-card-caption">
-                  {item.balance_cents < 0 ? 'Negative balance' : 'remaining'}
-                </p>
-              </div></a
-            >{/each}
-        </div>{/if}
-      <p class="home-footnote">
-        <span aria-hidden="true">↔</span> Shared with your family. Updated one entry at a time.
-      </p>
+      <BagHome
+        {bags}
+        {family}
+        {pinnedBagIDs}
+        onpins={(ids) => (pinnedBagIDs = ids)}
+        onexpense={(id) => openEntry('expense', id)}
+        oncreate={() => {
+          editBag = null;
+          modal = 'bag';
+        }}
+      />
     {/if}
   </main>
   <footer class="app-footer">
@@ -552,7 +487,7 @@
       {bags}
       {family}
       entry={editEntry}
-      selectedBag={bagID}
+      selectedBag={entryBagID}
       mode={entryMode}
       onsaved={() => saved(editEntry ? 'Entry updated.' : 'Entry saved. Everything is up to date.')}
       oncancel={() => (modal = '')}

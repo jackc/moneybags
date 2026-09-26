@@ -569,6 +569,9 @@ func (c *Core) deleteUser(ctx context.Context, p DeleteUserParams) (map[string]b
 		if err := tx.Delete("credentials", p.UserID); err != nil {
 			return nil, err
 		}
+		if err := tx.Delete("bag_preferences", p.UserID); err != nil {
+			return nil, err
+		}
 		if err := tx.Delete("users", p.UserID); err != nil {
 			return nil, err
 		}

@@ -47,6 +47,7 @@ func (b *memoryBlobs) DeleteBlob(_ context.Context, key string) error {
 }
 func Run(t *testing.T, store core.Store) {
 	t.Helper()
+	t.Run("personal bag pins", func(t *testing.T) { runBagPreferences(t, store) })
 	ctx := context.Background()
 	now := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
 	prefix := fmt.Sprintf("suite%d", time.Now().UnixNano())

@@ -119,7 +119,7 @@ func TestProductCatalogParityAndPrivateDefault(t *testing.T) {
 			}
 		}
 	}
-	for _, name := range []string{"whoami", "get_family", "list_bags", "get_bag", "create_bag", "update_bag", "archive_bag", "unarchive_bag", "list_entries", "get_entry", "get_entry_history", "create_entry", "update_entry", "delete_entry", "stage_attachment", "list_attachments", "get_attachment", "list_users", "delete_user", "update_family", "create_invitation", "list_invitations", "revoke_invitation", "list_connections", "revoke_connection"} {
+	for _, name := range []string{"whoami", "get_family", "list_bags", "get_bag", "get_bag_preferences", "set_bag_pin", "create_bag", "update_bag", "archive_bag", "unarchive_bag", "list_entries", "get_entry", "get_entry_history", "create_entry", "update_entry", "delete_entry", "stage_attachment", "list_attachments", "get_attachment", "list_users", "delete_user", "update_family", "create_invitation", "list_invitations", "revoke_invitation", "list_connections", "revoke_connection"} {
 		action, ok := catalog[name]
 		if !ok || !action.Web || !action.MCP || action.Public {
 			t.Errorf("ordinary product action %s does not share authenticated web and MCP exposure", name)

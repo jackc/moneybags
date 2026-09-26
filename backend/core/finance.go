@@ -258,6 +258,8 @@ func productInfo(description string, write bool) ActionInfo {
 	return ActionInfo{Description: description, Mutation: write, Permission: p, Web: true, MCP: true}
 }
 func (c *Core) registerFinanceActions() {
+	Register(c, "get_bag_preferences", productInfo("Get the current user's personal bag pins, in pin order. Pins do not change shared bags.", false), c.getBagPreferences)
+	Register(c, "set_bag_pin", productInfo("Keep a bag at the top of the current user's list, or unpin it. Set pinned explicitly; reuse request_id on retries.", true), c.setBagPin)
 	Register(c, "list_bags", productInfo("List family bags and exact USD-cent balances. Archived bags retain their balances.", false), c.listBags)
 	Register(c, "get_bag", productInfo("Get a bag and its current balance in USD cents.", false), c.getBag)
 	Register(c, "create_bag", productInfo("Create a bag, optionally with a signed initial amount in USD cents. Reuse request_id when retrying.", true), c.createBag)

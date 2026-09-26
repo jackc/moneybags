@@ -6,7 +6,21 @@
   let authorization = null,
     error = '',
     busy = false;
-  $: params = Object.fromEntries($page.url.searchParams.entries());
+  // OAuth clients can send extension parameters (e.g. ChatGPT's ui_locales).
+  // Only pass supported authorization fields to the strict internal action API.
+  const authorizationFields = [
+    'response_type',
+    'client_id',
+    'redirect_uri',
+    'scope',
+    'state',
+    'code_challenge',
+    'code_challenge_method',
+    'resource'
+  ];
+  $: params = Object.fromEntries(
+    [...$page.url.searchParams].filter(([key]) => authorizationFields.includes(key))
+  );
   const permissions = {
     'bags:read': 'Read your family’s bags, balances, entries, and attachments.',
     'bags:write': 'Create and manage bags, entries, notes, and attachments.',

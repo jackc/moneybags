@@ -21,6 +21,18 @@ shared bags and activity, Markdown notes, independent file attachments, entry
 history, account and connected-client management, and an OAuth-protected MCP
 endpoint. PostgreSQL and Jed implement the same transactional application ports.
 
+## Add to your phone's home screen
+
+Money Bags is an installable Progressive Web App (PWA). Open the deployed HTTPS
+site in Safari on iPhone, choose Share → Add to Home Screen, and enable Open as
+Web App if shown. On Android, open it in Chrome and choose Install app or Add to
+Home screen from the browser menu. It opens in its own window with the Money Bags
+icon. Localhost also supports installation for development.
+
+Budget access and changes require an internet connection. The service worker
+caches public app assets and shows a reconnect page when opened offline; it does
+not cache account data or attachments or queue changes for later submission.
+
 ## Run locally
 
 Install [mise](https://mise.jdx.dev/) and PostgreSQL 18. Then:

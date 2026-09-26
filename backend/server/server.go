@@ -338,6 +338,10 @@ func (a *API) staticHandler() http.Handler {
 		if strings.HasPrefix(clean, "/_app/immutable/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		}
+		// Minimal deployment images may not have a MIME database for web manifests.
+		if strings.HasSuffix(clean, ".webmanifest") {
+			w.Header().Set("Content-Type", "application/manifest+json")
+		}
 		fs.ServeHTTP(w, r)
 	})
 }

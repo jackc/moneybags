@@ -72,6 +72,10 @@ section 12 for review.
 A bag has a name, an optional description, and an archived flag. Names must be
 nonblank and unique within the family after trimming and case normalization.
 Archived bags retain their names and history; unarchive a bag to reuse it.
+Active and archived bags may also be permanently deleted after confirmation.
+Deletion removes the bag, its entries, revisions, attachments, consumed uploads,
+and all family members’ pins for that bag. Other bags remain unchanged. Request
+keys remain as tombstones so retries cannot recreate deleted data.
 
 Credits and debits use the same **entry** model and table. An entry contains
 exactly one bag ID and one signed amount, along with its date, optional multiline
@@ -546,7 +550,7 @@ that these endpoints already exist.
 | Area | Actions | Permission |
 | --- | --- | --- |
 | Context | `whoami`, `get_family` | Any active family user, read scope |
-| Bags | `list_bags`, `get_bag`, `create_bag`, `update_bag`, `archive_bag`, `unarchive_bag` | Any active family user; read/write scope as appropriate |
+| Bags | `list_bags`, `get_bag`, `create_bag`, `update_bag`, `archive_bag`, `unarchive_bag`, `delete_bag` | Any active family user; read/write scope as appropriate |
 | Activity | `list_entries`, `get_entry`, `get_entry_history` | Any active family user, read scope |
 | Entries | `create_entry`, `update_entry`, `delete_entry` | Active family user, write scope; same actions for credits, debits, and zero-dollar notes |
 | Files | `stage_attachment`, `list_attachments`, `get_attachment` | Any active family user; write scope to stage, read scope to list/download |
@@ -597,6 +601,10 @@ owned by that entry. All changes share one revision and transaction. Updating
 only notes or files leaves balances unchanged; changing the amount updates
 only this entry's bag balance. The bag ID cannot be changed in v1. File removals
 happen after commit, and copies attached to other entries remain untouched.
+
+`delete_bag` takes a bag ID, `expected_version`, and `request_id`. It removes the
+bag and all its entries in one transaction; attachment blobs are removed after
+commit. Any active family user with write access can delete a bag.
 
 `delete_entry` takes an entry ID, `expected_version`, and `request_id`. It removes
 the entry and its associated records and returns the bag's new balance. There

@@ -403,3 +403,53 @@ test('personal pins order one complete list across devices and expenses start in
   await page.setViewportSize({ width: 320, height: 740 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+for (const archived of [false, true]) {
+  test(`delete ${archived ? 'archived' : 'active'} bag with confirmation and return home`, async ({
+    page
+  }) => {
+    await register(page);
+    await createBag(page, 'Keep this bag', '25');
+    await createBag(page, 'Delete this bag', '100');
+    await page.getByRole('button', { name: 'Manage pins', exact: true }).click();
+    await page.getByRole('button', { name: 'Pin Delete this bag', exact: true }).click();
+    await expect(page.locator('.pin-caption')).toHaveText('Pinned');
+    await page
+      .getByRole('link')
+      .filter({ has: page.getByRole('heading', { name: 'Delete this bag', exact: true }) })
+      .click();
+    await entry(page, '10', 'Remove this receipt', 'expense', [
+      { name: 'receipt.txt', mimeType: 'text/plain', buffer: Buffer.from('receipt') }
+    ]);
+    if (archived) {
+      await page.getByRole('button', { name: 'Archive', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Unarchive', exact: true })).toBeVisible();
+    }
+    await page.getByRole('button', { name: 'Delete bag', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Delete Delete this bag?');
+    await expect(dialog).toContainText('for everyone in your family');
+    await dialog.getByRole('button', { name: 'Keep bag', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('.hero-balance')).toHaveText('$90.00');
+    await page.getByRole('button', { name: 'Delete bag', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Delete bag', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Your bags', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Delete this bag', exact: true })).toHaveCount(
+      0
+    );
+    await expect(page.getByRole('heading', { name: 'Keep this bag', exact: true })).toBeVisible();
+    await expect(page.locator('.home-bag-amount')).toHaveText('$25.00');
+    await page.reload();
+    await expect(page.locator('.home-bag')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: /Archived bags/ })).toHaveCount(0);
+    await createBag(page, 'Delete this bag');
+    await page
+      .getByRole('link')
+      .filter({ has: page.getByRole('heading', { name: 'Delete this bag', exact: true }) })
+      .click();
+    await page.getByRole('button', { name: 'Delete bag', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Delete bag', exact: true }).click();
+    await expect(page.locator('.home-bag')).toHaveCount(1);
+  });
+}

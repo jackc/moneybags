@@ -44,6 +44,11 @@ type ArchiveBagParams struct {
 	BagID           string `json:"bag_id"`
 	ExpectedVersion int64  `json:"expected_version"`
 }
+type DeleteBagParams struct {
+	RequestID       string `json:"request_id"`
+	BagID           string `json:"bag_id"`
+	ExpectedVersion int64  `json:"expected_version"`
+}
 type BagResult struct {
 	domain.Bag
 	BalanceCents int64     `json:"balance_cents"`
@@ -266,6 +271,7 @@ func (c *Core) registerFinanceActions() {
 	Register(c, "update_bag", productInfo("Rename or describe a bag using its expected_version. Reuse request_id on retries.", true), c.updateBag)
 	Register(c, "archive_bag", productInfo("Archive a bag without losing history or balance. Reuse request_id on retries.", true), func(ctx context.Context, p ArchiveBagParams) (any, error) { return c.archiveBag(ctx, p, true) })
 	Register(c, "unarchive_bag", productInfo("Unarchive a bag so entries may be created and edited. Reuse request_id on retries.", true), func(ctx context.Context, p ArchiveBagParams) (any, error) { return c.archiveBag(ctx, p, false) })
+	Register(c, "delete_bag", productInfo("Permanently delete a bag and all its entries, notes, history and attachments for the family. Requires expected_version. Reuse request_id on retries.", true), c.deleteBag)
 	Register(c, "list_entries", productInfo("List dated entries; positive cents add money, negative cents spend, and zero is a note.", false), c.listEntries)
 	Register(c, "get_entry", productInfo("Get an entry, notes, version and attachment metadata; file bytes are retrieved separately.", false), c.getEntry)
 	Register(c, "get_entry_history", productInfo("Get change history. Historical attachment metadata does not guarantee old file bytes remain available.", false), c.entryHistory)
@@ -742,58 +748,8 @@ func (c *Core) deleteEntry(ctx context.Context, p DeleteEntryParams) (any, error
 		if e := checkedVersion(p.ExpectedVersion, entry.Version, entry); e != nil {
 			return nil, "", nil, e
 		}
-		files, e := entryAttachments(tx, entry.ID)
+		removed, e := deleteEntries(tx, map[string]bool{entry.ID: true})
 		if e != nil {
-			return nil, "", nil, e
-		}
-		removed := make([]string, 0, len(files))
-		for _, file := range files {
-			if e = tx.Delete("attachments", file.ID); e != nil {
-				return nil, "", nil, e
-			}
-			removed = append(removed, file.BlobKey)
-		}
-		revisions, e := listRecords[domain.Revision](tx, "revisions")
-		if e != nil {
-			return nil, "", nil, e
-		}
-		for _, r := range revisions {
-			if r.EntryID == entry.ID {
-				if e = tx.Delete("revisions", r.ID); e != nil {
-					return nil, "", nil, e
-				}
-			}
-		}
-		uploads, e := listRecords[domain.Upload](tx, "uploads")
-		if e != nil {
-			return nil, "", nil, e
-		}
-		consumed := map[string]bool{}
-		for _, upload := range uploads {
-			if upload.ConsumedEntryID == entry.ID {
-				consumed[upload.ID] = true
-				if e = tx.Delete("uploads", upload.ID); e != nil {
-					return nil, "", nil, e
-				}
-			}
-		}
-		keys, e := listRecords[idempotencyRecord](tx, "idempotency")
-		if e != nil {
-			return nil, "", nil, e
-		}
-		for _, key := range keys {
-			if key.TargetID == entry.ID || consumed[key.TargetID] {
-				if consumed[key.TargetID] {
-					key.Result, _ = json.Marshal(map[string]any{"applied": true, "deleted": true, "upload_id": key.TargetID})
-				} else {
-					key.Result, _ = json.Marshal(map[string]any{"applied": true, "deleted": true, "entry_id": entry.ID})
-				}
-				if e = tx.Put("idempotency", key.ID, key); e != nil {
-					return nil, "", nil, e
-				}
-			}
-		}
-		if e = tx.Delete("entries", entry.ID); e != nil {
 			return nil, "", nil, e
 		}
 		balance, e := tx.Balance(entry.BagID)

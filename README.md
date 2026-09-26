@@ -14,7 +14,9 @@ edited or deleted, and all users in a family have equal access.
 The home page lists all active bags, with your personal pins first. Both pinned
 and unpinned bags are alphabetical. Use Manage pins to keep everyday bags at the
 top; pins are saved to your account across devices. Record expenses directly from a bag's card, and
-open the bag to add money or review activity. Bag amounts are budget guidelines.
+open the bag to add money or review activity. Use Delete bag on the bag page to
+permanently remove it and all its entries and attachments for the family, after
+confirmation. Archive a bag instead to preserve its balance and history. Bag amounts are budget guidelines.
 
 The application includes password and passkey authentication, invitations,
 shared bags and activity, Markdown notes, independent file attachments, entry

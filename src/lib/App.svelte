@@ -166,6 +166,24 @@
     }
   }
   let deleteRequest = '';
+  async function deleteBag() {
+    busy = true;
+    error = '';
+    try {
+      await action('delete_bag', {
+        bag_id: bag.id,
+        expected_version: bag.version,
+        request_id: deleteRequest
+      });
+      modal = '';
+      toast = 'Bag deleted, including its entries and attachments.';
+      await goto('/');
+    } catch (e) {
+      error = friendlyError(e);
+    } finally {
+      busy = false;
+    }
+  }
   async function deleteEntry() {
     busy = true;
     try {
@@ -416,6 +434,14 @@
             }}>Edit bag</button
           ><button class="text-button" disabled={busy} on:click={toggleArchive}
             >{bag.archived ? 'Unarchive' : 'Archive'}</button
+          ><button
+            class="text-button danger"
+            disabled={busy}
+            on:click={() => {
+              error = '';
+              deleteRequest = requestID();
+              modal = 'delete-bag';
+            }}>Delete bag</button
           >
         </div>
       </div>
@@ -492,6 +518,30 @@
       onsaved={() => saved(editEntry ? 'Entry updated.' : 'Entry saved. Everything is up to date.')}
       oncancel={() => (modal = '')}
     />{/if}
+  {#if modal === 'delete-bag'}<div class="sheet-backdrop" role="presentation">
+      <dialog
+        class="sheet small"
+        aria-labelledby="delete-bag-title"
+        aria-describedby="delete-bag-description"
+        use:openDialog={() => {
+          if (!busy) modal = '';
+        }}
+      >
+        <h2 id="delete-bag-title">Delete {bag.name}?</h2>
+        <p id="delete-bag-description">
+          This permanently deletes this bag and all its entries, notes, files, and change history
+          for everyone in your family. This cannot be undone.
+        </p>
+        <p>To keep its balance and history, archive the bag instead.</p>
+        {#if error}<div class="notice error" role="alert">{error}</div>{/if}
+        <div class="form-actions">
+          <button class="secondary" disabled={busy} on:click={() => (modal = '')}>Keep bag</button
+          ><button class="danger-button" disabled={busy} on:click={deleteBag}
+            >{busy ? 'Deleting…' : 'Delete bag'}</button
+          >
+        </div>
+      </dialog>
+    </div>{/if}
   {#if modal === 'delete'}<div class="sheet-backdrop" role="presentation">
       <dialog
         class="sheet small"

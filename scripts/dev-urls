@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'Web: http://localhost:%s\nAPI: http://localhost:%s\nMCP: http://localhost:%s/mcp\n' "${VITE_PORT:-5173}" "${BACKEND_PORT:-4000}" "${VITE_PORT:-5173}"

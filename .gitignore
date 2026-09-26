@@ -1,0 +1,15 @@
+/build/
+/node_modules/
+/.svelte-kit/
+/.dev/
+/data/
+/test-results/
+/playwright-report/
+/mise.local.toml
+/.port-tamer.env
+/.port-tamer.env.lock
+/.env
+/.env.*
+!/.env.example
+*.log
+__pycache__/

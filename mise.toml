@@ -1,0 +1,99 @@
+[tools]
+go = "1.27.0"
+node = "24.16.0"
+process-compose = "1.122.0"
+"github:jackc/port-tamer" = "0.1.0"
+"github:jackc/tern" = "2.4.3"
+"github:jackc/verna" = "0.8.0"
+
+[env]
+_.file = { path = ".port-tamer.env", optional = true }
+_.path = ["/usr/lib/postgresql/18/bin", "/opt/homebrew/opt/postgresql@18/bin", "/usr/local/opt/postgresql@18/bin"]
+BIND_ADDRESS = "127.0.0.1"
+DATABASE_BACKEND = "postgresql"
+DATABASE_URL = "postgres://postgres@127.0.0.1:{{env.PGPORT | default(value='5432')}}/moneybags_dev?sslmode=disable"
+TEST_DATABASE_URL = "postgres://postgres@127.0.0.1:{{env.PGPORT | default(value='5432')}}/moneybags_test?sslmode=disable"
+BACKEND_URL = "http://localhost:{{env.BACKEND_PORT | default(value='4000')}}"
+VITE_URL = "http://localhost:{{env.VITE_PORT | default(value='5173')}}"
+MCP_CANONICAL_URL = "http://localhost:{{env.VITE_PORT | default(value='5173')}}"
+WEBAUTHN_RP_ID = "localhost"
+WEBAUTHN_ORIGIN = "http://localhost:{{env.VITE_PORT | default(value='5173')}}"
+ATTACHMENTS_DIR = "{{config_root}}/.dev/attachments"
+JED_DATA_DIR = "{{config_root}}/.dev/jed"
+PGHOST = "127.0.0.1"
+PGUSER = "postgres"
+PGDATABASE = "moneybags_dev"
+TERN_CONFIG = "db/tern.conf"
+TERN_MIGRATIONS = "db/migrations/postgresql"
+PC_ADDRESS = "127.0.0.1"
+PC_LOG_FILE = "{{config_root}}/.dev/process-compose-client.log"
+
+[tasks."dev:init"]
+description = "Allocate checkout ports and install dependencies"
+run = "scripts/dev-init"
+
+[tasks.dev]
+description = "Supervise PostgreSQL, Go and Vite"
+run = "scripts/dev-up"
+
+[tasks."dev:wait"]
+run = "scripts/dev-ready --wait"
+
+[tasks."dev:down"]
+run = "process-compose -p ${PC_PORT_NUM:-8080} down"
+
+[tasks."dev:urls"]
+run = "scripts/dev-urls"
+
+[tasks."db:migrate"]
+run = "go run . migrate"
+
+[tasks."test:backend"]
+run = "go test -race ./..."
+
+[tasks."test:browser"]
+depends = ["build:assets"]
+run = "npm run test:browser"
+
+[tasks."test:frontend"]
+run = ["npm run check", "npm test"]
+
+[tasks.test]
+run = [{ task = "test:backend" }, { task = "test:frontend" }, { task = "test:browser" }]
+
+[tasks."test:operations"]
+depends = ["build"]
+run = "scripts/test-operations"
+
+[tasks."build:binary"]
+sources = ["main.go", "backend/**/*.go", "db/**/*.go", "db/**/*.sql", "go.mod", "go.sum"]
+outputs = ["build/moneybags"]
+run = ["mkdir -p build", "go build -trimpath -o build/moneybags ."]
+
+[tasks."build:assets"]
+sources = ["src/**/*", "static/**/*", "package.json", "package-lock.json", "svelte.config.js", "vite.config.js", "jsconfig.json"]
+outputs = ["build/assets/.built"]
+run = ["npm run build", "touch build/assets/.built"]
+
+[tasks.build]
+run = [{ tasks = ["build:binary", "build:assets"] }]
+
+[tasks."build:linux-amd64"]
+depends = ["build:assets"]
+run = "scripts/build-release linux amd64"
+
+[tasks."build:linux-arm64"]
+depends = ["build:assets"]
+run = "scripts/build-release linux arm64"
+
+[tasks."build:darwin-amd64"]
+depends = ["build:assets"]
+run = "scripts/build-release darwin amd64"
+
+[tasks."build:darwin-arm64"]
+depends = ["build:assets"]
+run = "scripts/build-release darwin arm64"
+
+[tasks.clean]
+alias = "clobber"
+run = "rm -rf build"

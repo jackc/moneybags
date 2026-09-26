@@ -1,6 +1,7 @@
 # Money Bags design
 
-Status: initial proposal for review; no application has been implemented.
+Status: implementation contract. See [implementation decisions](../decisions/2026-09-26-implementation.md)
+and the repository README for the implemented application and verification.
 Date: 2026-09-26.
 
 ## 1. Purpose and scope
@@ -739,7 +740,7 @@ patterns, not stale version numbers.
 The [build and deployment guide](build-and-deployment.md) specifies each task's
 outputs, release packaging, and Verna configuration and commands. These are
 requirements for the implementation; this repository currently contains design
-documents rather than executable build tasks. Release archives include the Go
+documents alongside executable build tasks. Release archives include the Go
 binary, static assets, version identifier, PostgreSQL migrations, and the Caddy
 handle template. Use Verna for deployment, as FAM and Logger4Life do.
 

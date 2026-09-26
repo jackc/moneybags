@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+moneybags_pgdata="${PGDATA:-$PWD/.dev/postgresql-18}"
+mkdir -p "$moneybags_pgdata"
+if [ ! -f "$moneybags_pgdata/PG_VERSION" ]; then
+  initdb -D "$moneybags_pgdata" --username=postgres --auth=trust --encoding=UTF8 --locale=C >/dev/null
+fi
+exec postgres -D "$moneybags_pgdata" -h 127.0.0.1 -p "${PGPORT:-5432}" -k ''

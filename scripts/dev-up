@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+test -f .port-tamer.env || { echo 'run mise run dev:init first' >&2; exit 1; }
+mkdir -p .dev
+exec process-compose -p "$PC_PORT_NUM" --log-file .dev/process-compose.log up "$@"

@@ -1,0 +1,48 @@
+version: "0.5"
+is_strict: true
+ordered_shutdown: true
+processes:
+  postgres:
+    command: scripts/postgres
+    readiness_probe:
+      exec:
+        command: pg_isready -h 127.0.0.1 -p "$PGPORT" -U postgres
+      initial_delay_seconds: 1
+      period_seconds: 1
+    shutdown:
+      signal: 2
+      timeout_seconds: 20
+    availability:
+      restart: on_failure
+      max_restarts: 3
+  database-ready:
+    command: scripts/db-bootstrap
+    depends_on:
+      postgres:
+        condition: process_healthy
+  backend:
+    command: PORT="$BACKEND_PORT" go run . server
+    depends_on:
+      database-ready:
+        condition: process_completed_successfully
+    readiness_probe:
+      http_get:
+        host: 127.0.0.1
+        port: ${BACKEND_PORT}
+        path: /health
+      initial_delay_seconds: 2
+      period_seconds: 2
+    availability:
+      restart: on_failure
+  vite:
+    command: npm run dev
+    depends_on:
+      backend:
+        condition: process_healthy
+    readiness_probe:
+      http_get:
+        host: 127.0.0.1
+        port: ${VITE_PORT}
+        path: /
+      initial_delay_seconds: 2
+      period_seconds: 2

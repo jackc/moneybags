@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mkdir -p .dev
+port-tamer allocate
+go mod download
+npm ci
+npx playwright install chromium
+scripts/dev-urls

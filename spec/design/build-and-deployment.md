@@ -1,8 +1,8 @@
 # Money Bags build and deployment
 
-Status: implementation contract and planned operator guide. The application,
-mise tasks, release script, and deployment template have not been scaffolded
-yet. Commands below describe the intended workflow once they are implemented.
+Status: implemented build contract and operator guide. The application, mise
+tasks, release script and deployment template are present. Live Verna rollout
+checks require a prepared test host; see [operations](../../docs/operations.md).
 
 ## Build tasks
 
@@ -70,13 +70,15 @@ Run commands with the mise environment active. Register the app once:
 
 ```sh
 verna app init --domain moneybags.example.com \
-  --exec-path moneybags --exec-arg server \
-  --caddy-handle-template-path deploy/caddy-handle-template.json
+  --exec-path moneybags --exec-arg server
 ```
 
-The executable, argument, and template path correspond to the Money Bags release
-layout above. See Verna's [app initialization options](https://github.com/jackc/verna#initialize-an-app)
-for the command contract.
+The executable and argument correspond to the Money Bags release layout above.
+The pinned Verna 0.8.0 accepts `--caddy-handle-template-path` on **deploy**, not
+`app init`; pass it explicitly as shown below. Newer upstream documentation
+describes an artifact-template option on initialization, but that option is
+absent from the released CLI and current published source inspected here.
+Verify commands with the pinned CLI's `--help` when upgrading Verna.
 
 ### Runtime configuration
 
@@ -132,13 +134,17 @@ go through authenticated API actions, never static file serving.
 Build and deploy for the server's architecture:
 
 ```sh
-mise run build:linux-amd64 && verna app deploy build/linux_amd64.tar.gz
+mise run build:linux-amd64 && verna app deploy build/linux_amd64.tar.gz \
+  --caddy-handle-template-path deploy/caddy-handle-template.json
 ```
 
 For an ARM64 server, use `build:linux-arm64` and `build/linux_arm64.tar.gz`.
 The Darwin targets produce local macOS artifacts; production Verna deployments
 use the Linux targets. This follows the sibling projects' build-and-deploy
-workflow.
+workflow. With Verna 0.8.0, deploy from the matching release checkout so its local
+Caddy template matches the template packaged in the archive. The archive still
+contains the template for inspection and compatibility with artifact-aware
+Verna versions.
 
 Inspect the deployed app with `verna app status` and `verna app logs`.
 `verna app rollback` selects the preceding release; it does not undo database

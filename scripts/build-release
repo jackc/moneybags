@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+if [ "$#" -ne 2 ]; then
+  echo 'usage: scripts/build-release {linux|darwin} {amd64|arm64}' >&2
+  exit 2
+fi
+case "$1/$2" in
+  linux/amd64|linux/arm64|darwin/amd64|darwin/arm64) ;;
+  *) echo 'unsupported release target' >&2; exit 2 ;;
+esac
+test -f build/assets/.built || { echo 'run mise run build:assets first' >&2; exit 1; }
+mkdir -p build
+target="build/${1}_${2}"
+staging="$(mktemp -d build/.release-XXXXXX)"
+archive="$(mktemp build/.archive-XXXXXX)"
+trap 'rm -rf "$staging"; rm -f "$archive"' EXIT
+CGO_ENABLED=0 GOOS="$1" GOARCH="$2" go build -trimpath -o "$staging/moneybags" .
+cp -R build/assets "$staging/assets"
+mkdir -p "$staging/deploy" "$staging/db/migrations"
+cp deploy/caddy-handle-template.json "$staging/deploy/"
+cp db/tern.conf "$staging/db/"
+cp -R db/migrations/postgresql "$staging/db/migrations/"
+version="$(git rev-parse HEAD)"
+if [ -n "$(git status --porcelain)" ]; then version="${version}-dirty"; fi
+printf '%s\n' "$version" > "$staging/VERSION"
+tar -czf "$archive" -C "$staging" .
+rm -rf "$target"
+mv "$staging" "$target"
+mv "$archive" "${target}.tar.gz"
+printf '%s\n' "${target}.tar.gz"

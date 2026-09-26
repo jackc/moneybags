@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Exercise a real stop/backup/restore/restart with balances and attachment bytes."""
+import http.cookiejar
+import json
+import os
+from pathlib import Path
+import runpy
+import socket
+import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+from urllib.parse import urlsplit, urlunsplit
+import uuid
+
+ROOT = Path(__file__).resolve().parent.parent
+BINARY = ROOT / "build/moneybags"
+
+
+def server(env):
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    origin = f"http://localhost:{port}"
+    env = dict(env, PORT=str(port), BIND_ADDRESS="127.0.0.1", MCP_CANONICAL_URL=origin,
+               WEBAUTHN_ORIGIN=origin, WEBAUTHN_RP_ID="localhost", SECURE_COOKIES="false",
+               ASSETS_DIR=str(ROOT / "build/assets"))
+    process = subprocess.Popen([str(BINARY), "server"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(100):
+        if process.poll() is not None:
+            raise RuntimeError("Application exited before becoming healthy")
+        try:
+            with urllib.request.urlopen(origin + "/health") as response:
+                if response.status == 200:
+                    return process, origin
+        except urllib.error.URLError:
+            time.sleep(0.05)
+    process.terminate()
+    process.wait(timeout=20)
+    raise RuntimeError("Application did not become healthy")
+
+
+def client(origin):
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    def action(name, payload):
+        request = urllib.request.Request(origin + "/api/actions/" + name, data=json.dumps(payload).encode(),
+                                         headers={"Content-Type": "application/json", "Origin": origin})
+        with opener.open(request) as response:
+            return json.load(response)
+    return opener, action
+
+
+def verify_backend(backend, source_url=None, restored_url=None):
+    with tempfile.TemporaryDirectory(prefix="moneybags-ops-") as directory:
+        root = Path(directory)
+        env = dict(os.environ, DATABASE_BACKEND=backend, JED_DATA_DIR=str(root / "source-jed"),
+                   ATTACHMENTS_DIR=str(root / "source-attachments"), MONEYBAGS_WRITES_STOPPED="1")
+        if source_url:
+            env["DATABASE_URL"] = source_url
+            subprocess.run([str(BINARY), "migrate"], env=env, check=True, stdout=subprocess.DEVNULL)
+        process, origin = server(env)
+        try:
+            _, call = client(origin)
+            call("register", {"username": "restore-test", "password": "a backup test password", "time_zone": "UTC"})
+            bag = call("create_bag", {"request_id": "fund", "name": "Groceries", "initial_amount_cents": 100000})
+            upload = call("stage_attachment", {"request_id": "receipt", "file_name": "receipt.txt", "data": "cmVjZWlwdA=="})
+            entry = call("create_entry", {"request_id": "spend", "bag_id": bag["id"], "amount_cents": -4250,
+                                          "notes": "Backup roundtrip", "attachment_upload_ids": [upload["upload_id"]]})
+        finally:
+            process.terminate()
+            process.wait(timeout=20)
+        archive = root / "backup.tar.gz"
+        subprocess.run([str(ROOT / "scripts/backup"), str(archive)], env=env, check=True, stdout=subprocess.DEVNULL)
+        restored = dict(env, JED_DATA_DIR=str(root / "restored-jed"), ATTACHMENTS_DIR=str(root / "restored-attachments"))
+        if restored_url:
+            restored["DATABASE_URL"] = restored_url
+        subprocess.run([str(ROOT / "scripts/restore"), str(archive)], env=restored, check=True, stdout=subprocess.DEVNULL)
+        process, origin = server(restored)
+        try:
+            opener, call = client(origin)
+            call("login", {"username": "restore-test", "password": "a backup test password"})
+            result = call("get_bag", {"bag_id": bag["id"]})
+            assert result["balance_cents"] == 95750, result
+            result = call("get_entry", {"entry_id": entry["id"]})
+            assert result["notes"] == "Backup roundtrip"
+            attachment = result["attachments"][0]
+            with opener.open(origin + "/api/attachments/" + attachment["id"]) as response:
+                assert response.read() == b"receipt"
+            history = call("get_entry_history", {"entry_id": entry["id"]})
+            assert len(history["revisions"]) == 1
+            with opener.open(origin + "/bags/" + bag["id"]) as response:
+                assert b"<html" in response.read(), "static SPA route failed"
+        finally:
+            process.terminate()
+            process.wait(timeout=20)
+        print(f"{backend}: native startup, SPA route, credentials, balance, history, attachment backup/restore passed")
+
+
+def main():
+    if not BINARY.exists():
+        raise SystemExit("Run mise run build first")
+    verify_backend("jed")
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        print("PostgreSQL restore check skipped: TEST_DATABASE_URL not set")
+        return
+    parsed = urlsplit(url)
+    databases = ["moneybags_ops_" + uuid.uuid4().hex[:16] for _ in range(2)]
+    helper = runpy.run_path(str(ROOT / "scripts/backup"))
+    original = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = url
+    pgenv = helper["postgres_environment"]()
+    if original is None:
+        del os.environ["DATABASE_URL"]
+    else:
+        os.environ["DATABASE_URL"] = original
+    created = []
+    try:
+        for database in databases:
+            subprocess.run(["createdb", "--maintenance-db", pgenv["PGDATABASE"], database], env=pgenv, check=True)
+            created.append(database)
+        urls = [urlunsplit(parsed._replace(path="/" + database)) for database in databases]
+        verify_backend("postgresql", *urls)
+    finally:
+        for database in created:
+            subprocess.run(["dropdb", "--maintenance-db", pgenv["PGDATABASE"], database], env=pgenv, check=True)
+
+
+if __name__ == "__main__":
+    main()

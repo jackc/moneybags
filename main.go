@@ -48,7 +48,11 @@ func run() error {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	handler, err := newLogHandler(env("LOG_FORMAT", "json"), env("LOG_LEVEL", "info"), os.Stderr)
+	if err != nil {
+		return fmt.Errorf("initialize logger: %w", err)
+	}
+	logger := slog.New(handler)
 	slog.SetDefault(logger)
 	var store core.Store
 	var closeStore func() error

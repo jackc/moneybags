@@ -54,6 +54,10 @@ Node is needed only for development and asset builds. Persist both the selected
 database and the attachment directory. Selecting another database backend does
 not transfer data.
 
+Logging defaults to JSON on stderr. Set `LOG_FORMAT=text` for readable console
+logs or `LOG_FORMAT=journal` to log directly to systemd journald, as in Logger4Life
+and FAM. `LOG_LEVEL` accepts `debug`, `info` (default), `warn`, or `error`.
+
 ## Verify and build
 
 ```sh

@@ -10,6 +10,7 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jackc/tern/v2 v2.4.3
 	github.com/modelcontextprotocol/go-sdk v1.7.0
+	github.com/systemd/slog-journal v0.1.2
 	golang.org/x/crypto v0.55.0
 )
 

@@ -91,6 +91,8 @@ verna app env set WEBAUTHN_RP_ID=moneybags.example.com
 verna app env set WEBAUTHN_ORIGIN=https://moneybags.example.com
 verna app env set MCP_CANONICAL_URL=https://moneybags.example.com
 verna app env set ATTACHMENTS_DIR=/var/lib/verna/apps/moneybags/shared/attachments
+verna app env set LOG_FORMAT=journal
+verna app env set LOG_LEVEL=info
 ```
 
 `MCP_CANONICAL_URL` is the public origin; clients connect to

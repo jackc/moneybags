@@ -15,6 +15,17 @@ Money Bags runs one active Go process behind HTTPS. Runtime settings are:
 | `WEBAUTHN_ORIGIN` | Must match the canonical origin |
 | `SECURE_COOKIES` | Defaults true for HTTPS; required for public deployment |
 | `FAMILY_STORAGE_QUOTA_BYTES` | Default `1073741824` (1 GiB per family) |
+| `LOG_FORMAT` | `json` (default), `text`, or `journal` for direct systemd journald logging |
+| `LOG_LEVEL` | `debug`, `info` (default), `warn`, or `error` |
+
+Logging settings are case-insensitive; empty or unrecognized values fall back
+to JSON and info. JSON and text logs go to stderr, leaving administrative action
+results on stdout. `LOG_FORMAT=journal` uses the same `slog-journal` handler as
+Logger4Life and FAM, sending native severity and structured fields directly to
+`/run/systemd/journal/socket`. Attribute and group names are normalized to
+uppercase journal field names (for example, `http.request.method` becomes
+`HTTP_REQUEST_METHOD`). Use journal format on hosts with journald available;
+the handler silently drops messages when the journal socket is absent.
 
 Production requires HTTPS, persistent data directories and a restorable backup.
 Serve attachment bytes only through the authenticated backend. Do not configure

@@ -66,7 +66,7 @@ depends = ["build"]
 run = "scripts/test-operations"
 
 [tasks."build:binary"]
-sources = ["main.go", "backend/**/*.go", "db/**/*.go", "db/**/*.sql", "go.mod", "go.sum"]
+sources = ["*.go", "backend/**/*.go", "db/**/*.go", "db/**/*.sql", "go.mod", "go.sum"]
 outputs = ["build/moneybags"]
 run = ["mkdir -p build", "go build -trimpath -o build/moneybags ."]
 

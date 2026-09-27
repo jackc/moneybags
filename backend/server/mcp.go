@@ -38,9 +38,13 @@ func (a *API) mcpHandler() http.Handler {
 		openWorld := info.Name == "create_entry" || info.Name == "update_entry" || info.Name == "stage_attachment"
 		meta := mcp.Meta{}
 		if schemaHasProperty(schema, "files") {
+			description += " Prefer this tool's native files input for ChatGPT conversation uploads: it is marked with openai/fileParams so ChatGPT can provide download_url and file_id without generating base64 text. For files, download_url must be an externally accessible HTTPS URL that MoneyBags can fetch without your session or authorization headers. Internal ChatGPT/OpenAI file IDs, internal resource links, sandbox: URLs, and /mnt/data/... paths are not usable URLs. If native file handoff is unavailable and no externally accessible URL is available, use code to base64-encode the complete original file and pass the value unchanged to stage_attachment with data, file_name, and mime_type. Verify the returned size and sha256 against the original file before passing its upload_id here in attachment_upload_ids. Never generate or reconstruct base64 text yourself; if exact transfer is unavailable, report that limitation and use the MoneyBags upload UI."
 			// https://developers.openai.com/plugins/reference#define-file-inputs
 			properties := schema["properties"].(map[string]any)
-			properties["files"] = map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"download_url": map[string]any{"type": "string"}, "file_id": map[string]any{"type": "string"}, "mime_type": map[string]any{"type": "string"}, "file_name": map[string]any{"type": "string"}}, "required": []string{"download_url", "file_id"}, "additionalProperties": false}}
+			fileSchema := schemaFor(reflect.TypeOf(core.FileSource{}))
+			delete(fileSchema["properties"].(map[string]any), "data")
+			fileSchema["required"] = []string{"download_url", "file_id"}
+			properties["files"] = map[string]any{"type": "array", "items": fileSchema}
 			meta["openai/fileParams"] = []string{"files"}
 		}
 		srv.AddTool(&mcp.Tool{Name: info.Name, Description: description, InputSchema: schema, Meta: meta, Annotations: &mcp.ToolAnnotations{ReadOnlyHint: !info.Mutation, DestructiveHint: &destructive, IdempotentHint: true, OpenWorldHint: &openWorld}}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -178,9 +182,13 @@ func schemaFor(t reflect.Type) map[string]any {
 			case "notes":
 				s["description"] = "Optional Markdown source; receipt tables are descriptive and do not determine financial amounts."
 			case "file_id":
-				s["description"] = "Stable client file identity, unchanged when a temporary download URL is refreshed."
+				s["description"] = "Stable client file identity, required with download_url and unchanged when that URL is refreshed. This is only an identity label; MoneyBags cannot fetch bytes from a file ID alone."
 			case "download_url":
-				s["description"] = "Temporary public HTTPS download URL; do not provide local or private addresses."
+				s["description"] = "Externally accessible HTTPS URL returning the actual file bytes without session cookies or authorization headers. Never supply internal resource links, file IDs, sandbox: URLs, /mnt/data/... paths, or private addresses. If unavailable, send base64 file bytes via stage_attachment.data instead."
+			case "data":
+				s["description"] = "Complete original file bytes encoded as a standard base64 string (at most 5 MiB decoded), with no data: prefix. Use code to read and encode the file; do not send a file ID, path, URL, or invented/truncated bytes. Use this when no externally accessible download URL is available; omit download_url."
+			case "mime_type":
+				s["description"] = "File media type hint, e.g. image/jpeg, image/png, or application/pdf. Stored MIME is detected from the actual bytes; supported image/PDF signatures must match this hint. A MIME label or filename cannot repair damaged bytes."
 			}
 			props[name] = s
 			if !strings.Contains(opts, "omitempty") {

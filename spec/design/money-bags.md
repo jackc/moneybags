@@ -245,6 +245,9 @@ spending; physical storage deduplication is unnecessary in v1.
 Initially cap each file at 5 MiB, following FAM. Enforce the cap while receiving
 or fetching bytes, detect content type where possible, and bound image
 dimensions if decoding previews. MIME labels and filenames are untrusted.
+Store the detected MIME type. Reject a declared JPEG, PNG, GIF, WebP, or PDF
+whose bytes lack the corresponding signature, with instructions to resend the
+original file bytes. This signature check does not validate full file integrity.
 Serve unrecognized or active content as downloads, not executable inline
 content. Authenticated reads check the owning entry's family; the blob directory
 is never a public static directory. List attachment metadata separately from
@@ -696,8 +699,25 @@ credentials. A file URL is untrusted even when it uses a documented client
 schema. URLs are ephemeral credentials and must not be persisted in logs or
 revision snapshots. An expired URL produces a retryable attachment error.
 
-Other MCP clients can stage bounded base64 bytes or use the authenticated upload
-endpoint and pass its upload IDs. The browser uses multipart upload through the
+Prefer the native `files` input on `create_entry` and `update_entry` for ChatGPT
+conversation uploads so the host supplies a temporary download URL without the
+model generating a long base64 argument. A file ID alone in `stage_attachment`
+is not this handoff: that tool has no file-bearing input annotation.
+
+When native handoff and an externally accessible HTTPS URL are unavailable, MCP clients (including
+ChatGPT) must use code to read the original file and send its complete
+base64-encoded bytes in `stage_attachment.data`, with `file_name` and `mime_type`,
+then pass the returned `upload_id` in `attachment_upload_ids`.
+Internal file IDs, internal resource links,
+`sandbox:` URLs, and local paths such as `/mnt/data/...` cannot be fetched by
+MoneyBags or automatically converted by the staging tool. Base64 data has no
+`data:` prefix and must be passed unchanged from programmatic encoding, never
+generated, repeated, or reconstructed by the model. Compare the returned
+attachment size and SHA-256 with values computed from the original file before
+linking the upload. If exact transfer is unavailable, use the upload UI.
+
+MCP clients can also use the authenticated upload endpoint and pass its upload
+IDs. The browser uses multipart upload through the
 same core staging action. Fetch/stage all requested files before creating or
 updating an entry; if any file fails, return an error without a partial financial
 write. Previously staged files remain available until consumed or expired.

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"mime"
 	"path"
 	"sort"
 	"strings"
@@ -42,7 +43,7 @@ type CleanupAttachmentsParams struct {
 }
 
 func (c *Core) registerAttachmentActions() {
-	info := productInfo("Stage bounded bytes or a downloadable file for one later entry. Reuse request_id on retries. Files expire after 24 hours.", true)
+	info := productInfo("Stage one file (at most 5 MiB) for one later entry. For ChatGPT conversation uploads, prefer the native files input on create_entry or update_entry so ChatGPT can supply a temporary download URL without generating base64 text. Supply the actual file bytes as a base64 string in data, or an externally accessible HTTPS download_url with file_id. MoneyBags cannot resolve ChatGPT/OpenAI file IDs, internal resource links, sandbox: URLs, or local paths such as /mnt/data/...; these are not download URLs and are not automatically converted by this tool. If no externally accessible URL is available, use code to read the original file and base64-encode its complete bytes, then send data directly, without a data: prefix. Pass the programmatically encoded value unchanged; never generate, manually reconstruct, repeat, or truncate base64 text. Compare the returned attachment.size and attachment.sha256 with values computed from the original file before linking the upload. If you cannot transfer the bytes exactly, report the limitation and use the MoneyBags upload UI. Include file_name and mime_type; a MIME label cannot repair damaged bytes. Pass the returned upload_id to create_entry or update_entry in attachment_upload_ids. Reuse request_id on retries. Files expire after 24 hours.", true)
 	info.MaxPayloadBytes = 8 << 20
 	Register(c, "stage_attachment", info, c.stageAttachment)
 	Register(c, "list_attachments", productInfo("List entry attachment metadata, without file bytes or download URLs.", false), c.listAttachments)
@@ -118,7 +119,7 @@ func (c *Core) stageAttachment(ctx context.Context, p StageAttachmentParams) (an
 			var e error
 			data, _, e = c.fetcher.Fetch(ctx, p.DownloadURL)
 			if e != nil {
-				return E("attachment_unavailable", "Could not retrieve the file; refresh its download URL and retry")
+				return E("attachment_unavailable", "Could not retrieve the file; provide an externally accessible HTTPS download_url or send the actual file bytes as base64 in data")
 			}
 		} else {
 			data = p.Data
@@ -127,13 +128,28 @@ func (c *Core) stageAttachment(ctx context.Context, p StageAttachmentParams) (an
 			return E("validation_error", "Each attachment must be at most 5 MiB")
 		}
 		if data == nil {
-			return E("validation_error", "File bytes or a downloadable file reference are required")
+			return E("validation_error", "Provide the actual file bytes as base64 in data, or an externally accessible HTTPS download_url with file_id; internal file IDs and local paths alone cannot be retrieved")
 		}
 		fileName = path.Base(strings.ReplaceAll(p.FileName, "\\", "/"))
 		if fileName == "." || fileName == "/" || fileName == "" || len(fileName) > 255 || strings.ContainsAny(fileName, "\r\n\x00") {
 			return E("validation_error", "A valid file_name is required")
 		}
 		mimeType = detectedMIME(data)
+		if p.MIMEType != "" {
+			declared, _, err := mime.ParseMediaType(p.MIMEType)
+			if err != nil || !strings.Contains(declared, "/") || strings.ContainsAny(declared, "*\r\n") {
+				return E("validation_error", "mime_type must be a valid media type such as image/jpeg")
+			}
+			// Check the formats whose signatures we recognize. A caller's label
+			// must not turn damaged or unrelated bytes into an image or PDF.
+			// This is a signature check, not full file integrity validation.
+			switch declared {
+			case "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf":
+				if declared != mimeType {
+					return E("validation_error", "File bytes do not match mime_type "+declared+"; use code to read the original file and resend its complete base64 bytes in data, or provide an externally accessible HTTPS URL to that file")
+				}
+			}
+		}
 		actor, _ := PrincipalFromContext(ctx)
 		attachmentID = c.id()
 		blobKey = actor.FamilyID + "/" + attachmentID

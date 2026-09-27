@@ -103,6 +103,13 @@ func TestMCPFileMetadataAndCredentialMutationHints(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tool := range list.Tools {
+		if tool.Name == "stage_attachment" || tool.Name == "create_entry" || tool.Name == "update_entry" {
+			for _, guidance := range []string{"externally accessible HTTPS", "base64", "/mnt/data/", "attachment_upload_ids"} {
+				if !strings.Contains(tool.Description, guidance) {
+					t.Errorf("%s lacks attachment guidance for %q", tool.Name, guidance)
+				}
+			}
+		}
 		if tool.Name == "create_entry" || tool.Name == "update_entry" {
 			raw, _ := json.Marshal(tool)
 			var parsed struct {
@@ -132,6 +139,10 @@ func TestMCPFileMetadataAndCredentialMutationHints(t *testing.T) {
 				if file.Properties[name] == nil {
 					t.Errorf("%s missing %s property", tool.Name, name)
 				}
+			}
+			urlProperty := file.Properties["download_url"].(map[string]any)
+			if description, _ := urlProperty["description"].(string); !strings.Contains(description, "stage_attachment.data") {
+				t.Errorf("%s file schema lost base64 fallback instructions", tool.Name)
 			}
 		}
 		if strings.Contains(tool.Name, "passkey") {

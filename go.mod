@@ -5,8 +5,8 @@ go 1.27.0
 require (
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-webauthn/webauthn v0.17.4
-	github.com/jackc/jed/impl/go v0.2.1-0.20260907033649-d6efeb49fc65
-	github.com/jackc/jed/migrate/go v0.0.0-20260907033649-d6efeb49fc65
+	github.com/jackc/jed/impl/go v0.2.1-0.20260927222052-904d497a9f7e
+	github.com/jackc/jed/migrate/go v0.0.0-20260927222052-904d497a9f7e
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jackc/tern/v2 v2.4.3
 	github.com/modelcontextprotocol/go-sdk v1.7.0
